@@ -1,4 +1,4 @@
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,10 +47,11 @@ class Settings(BaseSettings):
 
     channel_username: str = Field(alias="CHANNEL_USERNAME")
 
-    admin_ids: tuple[int, ...] = Field(default=(), alias="ADMIN_IDS")
-    admin_notify_ids: tuple[int, ...] = Field(default=(), alias="ADMIN_NOTIFY_IDS")
-    notify_event_types: tuple[str, ...] = Field(
-        default=("join", "leave", "ban", "kick", "unban"),
+    # Строки из .env — pydantic-settings не умеет tuple через запятую без JSON.
+    admin_ids_env: str = Field(default="", alias="ADMIN_IDS")
+    admin_notify_ids_env: str = Field(default="", alias="ADMIN_NOTIFY_IDS")
+    notify_event_types_env: str = Field(
+        default="join,leave,ban,kick,unban",
         alias="NOTIFY_EVENT_TYPES",
     )
 
@@ -58,15 +59,20 @@ class Settings(BaseSettings):
     initial_backfill_limit: int = Field(default=500, alias="INITIAL_BACKFILL_LIMIT")
     database_path: str = Field(default="data/bot.db", alias="DATABASE_PATH")
 
-    @field_validator("admin_ids", "admin_notify_ids", mode="before")
-    @classmethod
-    def _validate_int_list(cls, value: object) -> tuple[int, ...]:
-        return _parse_int_list(value)
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def admin_ids(self) -> tuple[int, ...]:
+        return _parse_int_list(self.admin_ids_env)
 
-    @field_validator("notify_event_types", mode="before")
-    @classmethod
-    def _validate_str_list(cls, value: object) -> tuple[str, ...]:
-        return _parse_str_list(value)
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def admin_notify_ids(self) -> tuple[int, ...]:
+        return _parse_int_list(self.admin_notify_ids_env)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def notify_event_types(self) -> tuple[str, ...]:
+        return _parse_str_list(self.notify_event_types_env)
 
     @field_validator("channel_username")
     @classmethod
