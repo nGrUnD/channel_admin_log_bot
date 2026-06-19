@@ -2,47 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from telethon.tl.types import (
-    ChannelAdminLogEventActionChangeAbout,
-    ChannelAdminLogEventActionChangeHistoryTTL,
-    ChannelAdminLogEventActionChangeLinkedChat,
-    ChannelAdminLogEventActionChangeLocation,
-    ChannelAdminLogEventActionChangePhoto,
-    ChannelAdminLogEventActionChangeStickerSet,
-    ChannelAdminLogEventActionChangeTitle,
-    ChannelAdminLogEventActionChangeUsername,
-    ChannelAdminLogEventActionCreateTopic,
-    ChannelAdminLogEventActionDefaultBannedRights,
-    ChannelAdminLogEventActionDeleteMessage,
-    ChannelAdminLogEventActionDeleteTopic,
-    ChannelAdminLogEventActionDiscardGroupCall,
-    ChannelAdminLogEventActionEditMessage,
-    ChannelAdminLogEventActionExportedInviteDelete,
-    ChannelAdminLogEventActionExportedInviteEdit,
-    ChannelAdminLogEventActionExportedInviteRevoke,
-    ChannelAdminLogEventActionParticipantInvite,
-    ChannelAdminLogEventActionParticipantJoin,
-    ChannelAdminLogEventActionParticipantJoinByInvite,
-    ChannelAdminLogEventActionParticipantJoinByRequest,
-    ChannelAdminLogEventActionParticipantLeave,
-    ChannelAdminLogEventActionParticipantMute,
-    ChannelAdminLogEventActionParticipantToggleAdmin,
-    ChannelAdminLogEventActionParticipantToggleBan,
-    ChannelAdminLogEventActionParticipantUnmute,
-    ChannelAdminLogEventActionParticipantVolume,
-    ChannelAdminLogEventActionPinMessage,
-    ChannelAdminLogEventActionSendMessage,
-    ChannelAdminLogEventActionStartGroupCall,
-    ChannelAdminLogEventActionStopPoll,
-    ChannelAdminLogEventActionToggleForum,
-    ChannelAdminLogEventActionToggleInvites,
-    ChannelAdminLogEventActionToggleNoForwards,
-    ChannelAdminLogEventActionTogglePreHistoryHidden,
-    ChannelAdminLogEventActionToggleSignatures,
-    ChannelAdminLogEventActionToggleSlowMode,
-    ChannelAdminLogEventActionUpdatePinned,
-    User,
-)
+from telethon.tl.types import User
 
 ACTION_LABELS: dict[str, str] = {
     "join": "вступил в канал",
@@ -63,6 +23,75 @@ ACTION_LABELS: dict[str, str] = {
     "forums": "форум",
     "other": "другое действие",
 }
+
+_JOIN_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionParticipantJoin",
+        "ChannelAdminLogEventActionParticipantJoinByInvite",
+        "ChannelAdminLogEventActionParticipantJoinByRequest",
+    }
+)
+_LEAVE_ACTIONS = frozenset({"ChannelAdminLogEventActionParticipantLeave"})
+_PINNED_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionUpdatePinned",
+        "ChannelAdminLogEventActionPinMessage",
+        "ChannelAdminLogEventActionPinTopic",
+    }
+)
+_INFO_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionChangeTitle",
+        "ChannelAdminLogEventActionChangeAbout",
+        "ChannelAdminLogEventActionChangePhoto",
+        "ChannelAdminLogEventActionChangeUsername",
+        "ChannelAdminLogEventActionChangeUsernames",
+        "ChannelAdminLogEventActionChangeLinkedChat",
+        "ChannelAdminLogEventActionChangeLocation",
+        "ChannelAdminLogEventActionChangeStickerSet",
+        "ChannelAdminLogEventActionChangeEmojiStickerSet",
+        "ChannelAdminLogEventActionChangeWallpaper",
+        "ChannelAdminLogEventActionChangePeerColor",
+        "ChannelAdminLogEventActionChangeProfilePeerColor",
+        "ChannelAdminLogEventActionChangeEmojiStatus",
+    }
+)
+_SETTINGS_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionToggleInvites",
+        "ChannelAdminLogEventActionTogglePreHistoryHidden",
+        "ChannelAdminLogEventActionToggleSignatures",
+        "ChannelAdminLogEventActionToggleSignatureProfiles",
+        "ChannelAdminLogEventActionToggleSlowMode",
+        "ChannelAdminLogEventActionDefaultBannedRights",
+        "ChannelAdminLogEventActionToggleNoForwards",
+        "ChannelAdminLogEventActionChangeHistoryTTL",
+        "ChannelAdminLogEventActionExportedInviteDelete",
+        "ChannelAdminLogEventActionExportedInviteEdit",
+        "ChannelAdminLogEventActionExportedInviteRevoke",
+        "ChannelAdminLogEventActionStopPoll",
+        "ChannelAdminLogEventActionToggleAntiSpam",
+        "ChannelAdminLogEventActionToggleGroupCallSetting",
+        "ChannelAdminLogEventActionChangeAvailableReactions",
+    }
+)
+_GROUP_CALL_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionStartGroupCall",
+        "ChannelAdminLogEventActionDiscardGroupCall",
+        "ChannelAdminLogEventActionParticipantMute",
+        "ChannelAdminLogEventActionParticipantUnmute",
+        "ChannelAdminLogEventActionParticipantVolume",
+    }
+)
+_FORUM_ACTIONS = frozenset(
+    {
+        "ChannelAdminLogEventActionToggleForum",
+        "ChannelAdminLogEventActionCreateTopic",
+        "ChannelAdminLogEventActionDeleteTopic",
+        "ChannelAdminLogEventActionEditTopic",
+    }
+)
 
 
 def _user_display(user: User | None) -> tuple[int | None, str | None, str | None]:
@@ -85,10 +114,15 @@ def _participant_user(action: Any) -> User | None:
     return None
 
 
+def _action_class_name(action: Any) -> str:
+    return type(action).__name__
+
+
 def parse_admin_log_event(event: Any) -> tuple[str, dict[str, Any], int | None, str | None, str | None]:
     """Returns action_type, payload, target_user_id, target_username, target_display_name."""
     action = event.action
-    payload: dict[str, Any] = {}
+    class_name = _action_class_name(action)
+    payload: dict[str, Any] = {"raw_action": class_name}
 
     actor_id, actor_username, actor_display = _user_display(getattr(event, "user", None))
     if actor_id is not None:
@@ -101,121 +135,64 @@ def parse_admin_log_event(event: Any) -> tuple[str, dict[str, Any], int | None, 
     target_user: User | None = None
     action_type = "other"
 
-    if isinstance(action, ChannelAdminLogEventActionParticipantJoin):
+    if class_name in _JOIN_ACTIONS:
         action_type = "join"
+        if class_name == "ChannelAdminLogEventActionParticipantJoinByInvite":
+            payload["via_invite"] = True
+        if class_name == "ChannelAdminLogEventActionParticipantJoinByRequest":
+            payload["via_request"] = True
         target_user = _participant_user(action) or getattr(event, "user", None)
-    elif isinstance(action, ChannelAdminLogEventActionParticipantLeave):
+    elif class_name in _LEAVE_ACTIONS:
         action_type = "leave"
         target_user = _participant_user(action) or getattr(event, "user", None)
-    elif isinstance(action, ChannelAdminLogEventActionParticipantJoinByInvite):
-        action_type = "join"
-        payload["via_invite"] = True
-        target_user = _participant_user(action) or getattr(event, "user", None)
-    elif isinstance(action, ChannelAdminLogEventActionParticipantJoinByRequest):
-        action_type = "join"
-        payload["via_request"] = True
-        target_user = _participant_user(action) or getattr(event, "user", None)
-    elif isinstance(action, ChannelAdminLogEventActionParticipantInvite):
+    elif class_name == "ChannelAdminLogEventActionParticipantInvite":
         action_type = "invite"
         target_user = _participant_user(action)
-    elif isinstance(action, ChannelAdminLogEventActionParticipantToggleBan):
+    elif class_name == "ChannelAdminLogEventActionParticipantToggleBan":
         banned = bool(getattr(action, "new_banned_rights", None))
         action_type = "ban" if banned else "unban"
         target_user = _participant_user(action)
         payload["banned"] = banned
-    elif isinstance(action, ChannelAdminLogEventActionParticipantToggleAdmin):
+    elif class_name == "ChannelAdminLogEventActionParticipantToggleAdmin":
         admin_rights = getattr(action, "new_admin_rights", None)
         action_type = "promote" if admin_rights else "demote"
         target_user = _participant_user(action)
-    elif isinstance(action, ChannelAdminLogEventActionEditMessage):
+    elif class_name == "ChannelAdminLogEventActionEditMessage":
         action_type = "edit"
         msg = getattr(action, "new_message", None) or getattr(action, "prev_message", None)
         if msg is not None:
             payload["message_id"] = getattr(msg, "id", None)
-    elif isinstance(action, ChannelAdminLogEventActionDeleteMessage):
+    elif class_name == "ChannelAdminLogEventActionDeleteMessage":
         action_type = "delete"
         messages = getattr(action, "message", None) or []
         if not isinstance(messages, list):
             messages = [messages]
         payload["message_ids"] = [getattr(m, "id", None) for m in messages if m is not None]
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionUpdatePinned,
-            ChannelAdminLogEventActionPinMessage,
-        ),
-    ):
+    elif class_name in _PINNED_ACTIONS:
         action_type = "pinned"
         msg = getattr(action, "message", None)
         if msg is not None:
             payload["message_id"] = getattr(msg, "id", None)
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionChangeTitle,
-            ChannelAdminLogEventActionChangeAbout,
-            ChannelAdminLogEventActionChangePhoto,
-            ChannelAdminLogEventActionChangeUsername,
-            ChannelAdminLogEventActionChangeLinkedChat,
-            ChannelAdminLogEventActionChangeLocation,
-            ChannelAdminLogEventActionChangeStickerSet,
-        ),
-    ):
+    elif class_name in _INFO_ACTIONS:
         action_type = "info"
-        if isinstance(action, ChannelAdminLogEventActionChangeTitle):
+        if class_name == "ChannelAdminLogEventActionChangeTitle":
             payload["new_title"] = getattr(action, "title", None)
-        if isinstance(action, ChannelAdminLogEventActionChangeAbout):
+        if class_name == "ChannelAdminLogEventActionChangeAbout":
             payload["new_about"] = getattr(action, "about", None)
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionToggleInvites,
-            ChannelAdminLogEventActionTogglePreHistoryHidden,
-            ChannelAdminLogEventActionToggleSignatures,
-            ChannelAdminLogEventActionToggleSlowMode,
-            ChannelAdminLogEventActionDefaultBannedRights,
-            ChannelAdminLogEventActionToggleNoForwards,
-            ChannelAdminLogEventActionChangeHistoryTTL,
-        ),
-    ):
+    elif class_name in _SETTINGS_ACTIONS:
         action_type = "settings"
-    elif isinstance(action, ChannelAdminLogEventActionSendMessage):
+    elif class_name == "ChannelAdminLogEventActionSendMessage":
         action_type = "send"
         msg = getattr(action, "message", None)
         if msg is not None:
             payload["message_id"] = getattr(msg, "id", None)
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionStartGroupCall,
-            ChannelAdminLogEventActionDiscardGroupCall,
-            ChannelAdminLogEventActionParticipantMute,
-            ChannelAdminLogEventActionParticipantUnmute,
-            ChannelAdminLogEventActionParticipantVolume,
-        ),
-    ):
+    elif class_name in _GROUP_CALL_ACTIONS:
         action_type = "group_call"
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionToggleForum,
-            ChannelAdminLogEventActionCreateTopic,
-            ChannelAdminLogEventActionDeleteTopic,
-        ),
-    ):
+    elif class_name in _FORUM_ACTIONS:
         action_type = "forums"
-    elif isinstance(
-        action,
-        (
-            ChannelAdminLogEventActionExportedInviteDelete,
-            ChannelAdminLogEventActionExportedInviteEdit,
-            ChannelAdminLogEventActionExportedInviteRevoke,
-            ChannelAdminLogEventActionStopPoll,
-        ),
-    ):
-        action_type = "settings"
-    else:
-        payload["raw_action"] = type(action).__name__
+    elif class_name == "ChannelAdminLogEventActionParticipantSubExtend":
+        action_type = "join"
+        target_user = _participant_user(action) or getattr(event, "user", None)
 
     target_id, target_username, target_display = _user_display(target_user)
     if target_id is not None:
@@ -224,11 +201,6 @@ def parse_admin_log_event(event: Any) -> tuple[str, dict[str, Any], int | None, 
         payload["target_username"] = target_username
     if target_display:
         payload["target_display_name"] = target_display
-
-    if action_type == "kick":
-        pass
-    elif action_type == "ban" and payload.get("banned") is False:
-        action_type = "unban"
 
     return action_type, payload, target_id, target_username, target_display
 
