@@ -1,0 +1,27 @@
+# Пример systemd-юнита для channel_admin_log_bot.
+#
+# Установка вручную:
+#   sed -e "s|__USER__|deploy|g" -e "s|__APP_DIR__|/home/deploy/channel_admin_log_bot|g" \
+#     scripts/channel-admin-log-bot.service.example | sudo tee /etc/systemd/system/channel-admin-log-bot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now channel-admin-log-bot.service
+#
+# Или автоматически: ./scripts/setup_server.sh
+
+[Unit]
+Description=Channel Admin Log Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=__APP_DIR__/.env
+ExecStart=__APP_DIR__/venv/bin/python -m app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
